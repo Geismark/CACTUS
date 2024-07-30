@@ -2,7 +2,7 @@ import socket, selectors, traceback, threading
 from queue import Queue
 from src.logger.logger import get_logger
 
-log = get_logger("server.py")
+log = get_logger("server.py", custom_file_name_start="server_")
 
 
 class ServerManager:

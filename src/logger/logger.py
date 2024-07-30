@@ -20,11 +20,13 @@ except ModuleNotFoundError:
     from logger_settings import LoggerSettings
 
 
-def get_logger(name, settings_class=None):
+def get_logger(name, settings_class=None, custom_file_name_start=None):
     if not settings_class:
         settings = LoggerSettings()
     else:
         settings = settings_class
+    if custom_file_name_start is None:
+        custom_file_name_start = ""
 
     logger = logging.getLogger(name)
     logger.setLevel(logging.TRACE)  # Capture everything internally @ value 1 (lowest)
@@ -46,7 +48,7 @@ def get_logger(name, settings_class=None):
         os.makedirs(settings.LOG_FOLDER, exist_ok=True)
         # Set log file name (time format NOT what is printed to file)
         current_time = datetime.now().strftime("%Y-%m-%d_%H-%M-%S")
-        file_name = f"log-{current_time}-[{settings.FILE_LOG_LEVEL_RANGE[0]}-{settings.FILE_LOG_LEVEL_RANGE[1]}].txt"
+        file_name = f"{custom_file_name_start}log-{current_time}-[{settings.FILE_LOG_LEVEL_RANGE[0]}-{settings.FILE_LOG_LEVEL_RANGE[1]}].txt"
         file_path = os.path.join(settings.LOG_FOLDER, file_name)
 
         file_handler = logging.FileHandler(file_path)
