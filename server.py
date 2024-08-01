@@ -6,6 +6,8 @@ from datetime import datetime
 import json
 
 log = get_logger("server.py", custom_file_name_start="server_")
+# RECV_SIZE = 16
+RECV_SIZE = 4096
 
 
 class ServerManager:
@@ -56,12 +58,15 @@ class ServerManager:
 
                 except socket.timeout:
                     log.trace("socket.timeout check for KeyboardInterrupt")
+                    if self.clients:
+                        self.broadcast_update_all_clients({"test": True})
                     pass
         except KeyboardInterrupt:
             log.warning("Server closed by KeyboardInterrupt.")
         finally:
             self.run_client_threads = False
             self.server_sock.close()
+            self.clients.clear()
 
     def handle_client(self, client_socket):
         log.detail(
@@ -73,12 +78,10 @@ class ServerManager:
         client_id = f"{addr_ip[0]}:{addr_ip[1]}-{client_socket.fileno()}"
         while self.run_client_threads and thread_client_connected:
             try:
-                enc_message = client_socket.recv(4096)
+                enc_message = client_socket.recv(RECV_SIZE)
                 if not enc_message:
                     log.info(f"Client disconnected: {client_id}")
                     # 2 = SHUT_RDWR meaning no more reads or writes
-                    client_socket.shutdown(2)
-                    client_socket.close()
                     thread_client_connected = False
                     break
                 data_handler.process_recv_data(enc_message)
@@ -86,17 +89,21 @@ class ServerManager:
                 log.info(f"Client forcibly disconnected: {client_id}")
                 thread_client_connected = False
                 break
+        self.clients.pop(client_socket, None)
+        client_socket.shutdown(2)
+        client_socket.close()
         log.detail(f"Thread closed: {client_id} {threading.current_thread().name}")
 
     def process_data_thread(self):
         while self.run_client_threads:
             if not self.data_queue.empty():
-                message = self.data_queue.get()
-                log.debug(f"Processing message: {message}")
+                client_socket, message = self.data_queue.get()
+                log.debug(f"Processing message from: {client_socket}\n\t{message}")
 
-    def broadcast_update(self, message):
-        for client in self.clients:
-            client.send(message)
+    def broadcast_update_all_clients(self, dict_message):
+        DataHandler.broadcast_dict_message_to_all_clients(
+            self.clients.keys(), dict_message
+        )
 
     def send_new_client_setup(self, client_socket):
         pass

@@ -1,5 +1,6 @@
 from src.logger.logger import get_logger
 import traceback, re, json, time
+from errno import ENOTSOCK
 
 
 class DataHandler:
@@ -15,27 +16,30 @@ class DataHandler:
         self.message_buffer = None
         self.expected_length = None
 
-    # "†‡"
+    # "†‡" \xe2\x80\xa0   \xe2\x80\xa1
     def process_recv_data(self, data):
+        # TODO what happens if data contains end of message and start of another???
         # no prior message/header:
         if self.expected_length == None:
             # could just search for encoded header and decode only that, instead of entire message?
             DataHandler.log.debug(f"New message started from {self.client_ip}")
-            temp_hold = data.decode("utf-8")
-            if temp_hold[0] != "†":
+            # temp_data_decoded = data.decode("utf-8")
+            if not data.startswith(b"\xe2\x80\xa0"):  # startswith("†")
                 raise ValueError(
-                    f"Expected header indicator † not found: {temp_hold[0]=}\n\t{temp_hold=}"
+                    f"Expected header indicator † not found: {data=}\n\t{data.decoded("utf-8")=}"
                 )
-            self.expected_length = re.search(r"†(\d+)‡", temp_hold).group(1)
-            self.message_buffer = temp_hold.split("‡", 1)[1].encode("utf-8")
+            
+            self.expected_length = re.search(b"\xe2\x80\xa0(\d+)\xe2\x80\xa1", data).group(1).decode("utf-8")
+            self.message_buffer = data.split(b"\xe2\x80\xa1", 1)[1]
             DataHandler.log.detail(f"Expected length: {self.expected_length}")
         # ongoing message stream
         else:
             DataHandler.log.debug(f"Message continues from {self.client_ip}")
-            self.message_buffer += data.decode("utf-8")
+            self.message_buffer += data
         # check is entire message has been received
         if len(self.message_buffer) == int(self.expected_length):
-            data_dict_output = json.loads(self.message_buffer)
+            decoded_message = self.message_buffer.decode("utf-8")
+            data_dict_output = json.loads(decoded_message)
             DataHandler.log.debug(
                 f"Full message received, length: {self.expected_length}, from {self.client_ip}"
             )
@@ -47,10 +51,15 @@ class DataHandler:
     def _send_data(self, conn, data):
         try:
             conn.sendall(data)
+        except (ConnectionResetError, ConnectionAbortedError, ConnectionRefusedError):
+            DataHandler.log.warning(f"Failed to send message, disconnected: {conn=}")
         except Exception as e:
-            DataHandler.log.error(f"Error sending data: {conn=}\n\t{data=}\n\t{e=}")
-            DataHandler.log.error(traceback.format_exc())
-            raise e
+            if e.errno == ENOTSOCK:
+                DataHandler.log.debug(f"Failed to send message, socket closed [10038] {conn=}")
+            else:
+                DataHandler.log.error(f"Error sending data: {conn=}\n\t{data=}\n\t{e=}")
+                DataHandler.log.error(traceback.format_exc())
+                raise e
 
     @classmethod
     def _process_send_data(self, data):
@@ -79,8 +88,26 @@ class DataHandler:
         Header indicators should be filtered prior to calling this method.\n
         See: /src/utils/example.json for protocol documentation."""
         message_dict["time"] = time.time()
-        DataHandler.log.debug(f"Sending message - dict length: {len(message_dict)}")
-        DataHandler.log.detail(f"{message_dict=}")
         json_plain = json.dumps(message_dict)
         json_bytes_to_send = self._process_send_data(json_plain)
+        DataHandler.log.debug(
+            f"Sending message - dict length: {len(json_bytes_to_send)}"
+        )
+        DataHandler.log.detail(f"{message_dict=}")
         self._send_data(conn, json_bytes_to_send)
+
+    @classmethod
+    def broadcast_dict_message_to_all_clients(self, client_conn_list, message_dict):
+        if not client_conn_list:
+            DataHandler.log.warning("No clients to broadcast to")
+            return
+        message_dict["time"] = time.time()
+        json_plain = json.dumps(message_dict)
+        json_bytes_to_send = self._process_send_data(json_plain)
+        DataHandler.log.info(
+            f"Broadcasting message (in log.debug) - bytes length: {len(json_bytes_to_send)}"
+        )
+        DataHandler.log.debug(f"Broadcast Message: {message_dict}")
+        for conn in client_conn_list:
+            DataHandler.log.debug(f"Broadcasting to: {conn.fileno()}")
+            self._send_data(conn, json_bytes_to_send)
