@@ -1,4 +1,4 @@
-def number_to_words(num):
+def int_to_letter(num):
     num = int(num)
     if 0 <= num <= 25:
         return chr(num + 65)
