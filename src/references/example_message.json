@@ -1,0 +1,35 @@
+{
+	"time": "time.time()",
+	"Init": {
+		"callsign": "Red Crown",
+		"password": "1234",
+		"request_setup": true
+	},
+	"Meta": {
+		"password": false,
+		"callsign": false,
+		"authenticated": true
+	},
+	"WORDS": {
+		"ADD": {
+			"1": "Texaco IN-OP"
+		},
+		"EDIT": {
+			"0": "Magic midnight, Darkstar sunrise @134"
+		},
+		"REMOVE": [
+			"2"
+		]
+	},
+	"Users": {
+		"ADD": [
+			"Darkstar"
+		],
+		"REMOVE": [
+			"Magic"
+		]
+	},
+	"ATO": {
+		"Not Implemented": "Yet"
+	}
+}

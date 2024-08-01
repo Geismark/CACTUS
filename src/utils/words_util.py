@@ -1,3 +1,7 @@
+def iid_context_to_values(iid, context: str) -> tuple:
+    return (int_to_phonetic(iid), context)
+
+
 def int_to_letter(num: int) -> str:
     num = int(num)
     if 0 <= num <= 25:

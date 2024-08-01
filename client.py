@@ -4,9 +4,11 @@ from tkinter import scrolledtext
 from tkinter import ttk
 from src.logger.logger import get_logger
 from src.classes.client_gui import ClientGUI
-from src.utils.words_util import int_to_letter
+from src.utils.words_util import iid_context_to_values
 from src.classes.data_handler import DataHandler
+from src.utils.socket_util import get_socket_id
 from errno import ENOTSOCK
+from queue import Queue
 
 log = get_logger("client.py")
 
@@ -25,7 +27,7 @@ class Client(tk.Tk):
     def __init__(self):
         self.client_socket = None
         self.connected = False
-        # TODO never reference self.connected directly, go through self.set_connected()
+        self.server_message_queue = Queue()
         super().__init__()
         self.gui_setup()
         if TESTING:
@@ -36,13 +38,13 @@ class Client(tk.Tk):
     def gui_setup(self):
         ClientGUI.gui_setup(self)
 
-    def disconnect_from_server(self):
+    def disconnect_from_server(self, feedback):
         # must come first to stop socket.recv() before losing socket
         self.connected = False
         self.client_socket.shutdown(2)  # 2 = SHUT_RDWR meaning no more reads or writes
         self.client_socket.close()
         self.toggle_connect_tab_elements(False)
-        self.set_connect_feedback(text="Disconnected")
+        self.set_connect_feedback(text=feedback)
 
     def connect_to_server(self):
         self.client_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
@@ -56,20 +58,25 @@ class Client(tk.Tk):
             return
         connect_message_dict = {
             "Init": {
-                "Callsign": self.callsign,
-                "Password": self.password,
-                "Request Setup": True,  # should be True always, testing only
+                "callsign": self.callsign,
+                "password": self.password,
+                "request_setup": True,  # should be True always (for now)
             }
         }
         try:
             self.client_socket.connect((self.address, self.port))
-            DataHandler.send_dict_message_to_server(
-                self.client_socket, connect_message_dict
+            DataHandler.send_dict_message_to_sockets(
+                [self.client_socket], connect_message_dict
             )
             self.connected = True  # TODO update widgets by 'connected'
             self.toggle_connect_tab_elements(True)
             self.set_connect_feedback(text="Connection Successful")
             log.debug(f"Connection Successful: {self.address}:{self.port}")
+            self.processing_thread = threading.Thread(
+                target=self.process_message_thread
+            )
+            self.processing_thread.daemon = True
+            self.processing_thread.start()
             self.listen_thread = threading.Thread(target=self.listen_to_server)
             self.listen_thread.daemon = True
             self.listen_thread.start()
@@ -81,21 +88,29 @@ class Client(tk.Tk):
             # self.connect_button.config(fg="red")
 
     def listen_to_server(self):
+        log.debug("Listening thread started")
+        data_handler = DataHandler(self.client_socket, self.server_message_queue)
         try:
             while self.connected:
-                data_bytes = self.client_socket.recv(4096)
-                log.debug("listening thread started - NYI")
+                enc_message = self.client_socket.recv(4096)
+                if not enc_message:
+                    log.debug("Server socket closed, disconnecting")
+                    self.disconnect_from_server("Server closed")
+                    break
+                data_handler.process_recv_data(enc_message)
+
         except (ConnectionResetError, ConnectionAbortedError, ConnectionRefusedError):
-            self.connected = False
-            self.toggle_connect_tab_elements(False)
-            self.set_connect_feedback(text="Connection Lost")
-            log.debug("Connection Lost")
+            self.disconnect_from_server("Connection Lost")
+            log.debug("Connection Lost (reset/aborted/refused)")
         except OSError as e:
             if (
                 e.errno == ENOTSOCK
             ):  # ENOTSOCK -> OSError: [WinError 10038] An operation was attempted on something that is not a socket
                 log.debug("Client Socket closed [10038] - traceback in log.trace")
-            log.trace(f"{traceback.format_exc()}")
+                log.trace(f"{traceback.format_exc()}")
+            else:
+                log.error(f"Error in listening thread\n\t{e}")
+                raise e
         log.debug("Listening thread closed")
 
     def set_element_states(self, elements: list, state: str) -> None:
@@ -106,7 +121,8 @@ class Client(tk.Tk):
         if connected:
             inputs_state = "disable"
             self.connect_button.config(
-                text="Disconnect", command=self.disconnect_from_server
+                text="Disconnect",
+                command=lambda: self.disconnect_from_server("Disconnected"),
             )
         else:
             inputs_state = "normal"
@@ -120,10 +136,6 @@ class Client(tk.Tk):
             ],
             inputs_state,
         )
-
-    def send_to_server(self):
-        message = "NYI"
-        self.client_socket.send(message.encode("utf-8"))
 
     def set_connect_defaults(self, address, port, callsign, password):
         self.address_text.insert(0, address)
@@ -141,13 +153,59 @@ class Client(tk.Tk):
 
             pass
 
-    def check_indicators_in_text_list(self, text_list):
+    def check_indicators_in_text_list(self, text_list: list[str]):
         indicators = set("†‡")
         for text in text_list:
             if any((i in indicators) for i in text):
                 log.detail(f"Indicators †‡ found in text: {text}")
                 return True
         return False
+
+    def process_message_thread(self):
+        log.debug("Processing thread started")
+        while self.connected:
+            if not self.server_message_queue.empty():
+                continue
+            # don't want to block on get() as it would prevent breaking the while loop
+            client_socket, data = self.server_message_queue.get()
+            socket_id = get_socket_id(client_socket)
+
+            # ============== Init ==============
+            init = data.get("Init", {})
+            if init:  # init only sent to server
+                log.warning(f"Init data received from server, not expected.\n\t{data}")
+            # ============== Meta ==============
+            meta = data.get("Meta", {})
+            if meta.get("password") == False:
+                self.connected = False
+                log.info("Server rejected connection due to incorrect password")
+                self.disconnect_from_server("Authentication failed (password)")
+                return
+            if meta.get("callsign") == False:
+                self.connected = False
+                log.info("Server rejected connection due to invalid callsign")
+                self.disconnect_from_server("Authentication failed (callsign)")
+                return
+            if meta.get("authenticated") == True:
+                log.info("Client is now authenticated")
+                self.set_connect_feedback("Authenticated")
+            # ============== WORDS ==============
+            # add
+            words_add = data.get("WORDS", {}).get("ADD", {})
+            for iid, context in words_add.items():
+                ClientGUI.add_treeview_row(self.words_treeview, iid, context)
+            # remove
+            words_remove = data.get("WORDS", {}).get("REMOVE", [])
+            for iid in words_remove:
+                ClientGUI.remove_treeview_row(self.words_treeview, iid)
+            # edit
+            words_edit = data.get("WORDS", {}).get("EDIT", {})
+            for iid, context in words_edit.items():
+                ClientGUI.edit_treeview_row(self.words_treeview, iid, context)
+            # ============== Users ==============
+            users = data.get("Users", {})
+
+        log.debug("Processing thread closed")
 
 
 if __name__ == "__main__":

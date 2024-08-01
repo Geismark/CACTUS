@@ -2,6 +2,7 @@ import tkinter as tk
 from tkinter import ttk
 from src.logger.logger import get_logger
 from src.classes.data_handler import DataHandler
+from src.utils.words_util import int_to_phonetic
 
 
 class ClientGUI:
@@ -11,7 +12,8 @@ class ClientGUI:
         self.log = get_logger(__name__)
         self.log.trace("Starting ClientGUI setup")
         self.window = window
-        window.geometry("795x235")
+        # window.geometry("795x235") # BELOW IS TESTING SIZE
+        window.geometry("795x265")
         # window.resizable(False, False)
         # Notebook & tabs
         window.notebook = ttk.Notebook(window)
@@ -129,11 +131,38 @@ class ClientGUI:
         window.words_treeview.pack()
         treeScroll.config(command=window.words_treeview.yview)
         # set column width
-        window.words_treeview.column("WORD", width=5, anchor="center")
+        window.words_treeview.column("WORD", width=44, minwidth=20, anchor="center")
         window.words_treeview.column("Content", width=400, anchor="w")
         # set column names
         for col in cols:
             window.words_treeview.heading(col, text=col)
+        # --------------- Testing ---------------
+        window.words_treeFrameExtras = ttk.Frame(tab)
+        extra_frame = window.words_treeFrameExtras
+        extra_frame.grid(row=1, column=2)
+        # test add button
+        # window.words_test_button = tk.Button(
+        #     extra_frame,
+        #     text="Test",
+        #     command=lambda: self.add_treeview_row(window.words_treeview),
+        # )
+        # window.words_test_button.grid(row=0, column=0)
+        # test reset button
+        window.words_test_button = tk.Button(
+            extra_frame,
+            text="Reset",
+            command=lambda: self.reset_treeview(window.words_treeview),
+        )
+        window.words_test_button.grid(row=0, column=1)
+        # test 2
+        # window.words_test_button2 = tk.Button(
+        #     extra_frame,
+        #     text="Reset",
+        #     command=lambda: self.edit_treeview_row(
+        #         window.words_treeview, 2, (2, "test")
+        #     ),
+        # )
+        # window.words_test_button2.grid(row=0, column=2)
 
     @classmethod
     def validate_word_input(self, result):
@@ -155,3 +184,16 @@ class ClientGUI:
             self.window.words_input_text.config(state="disable")
         else:
             self.window.words_input_text.config(state="normal")
+
+    @classmethod
+    def reset_treeview(self, treeview):
+        children = treeview.get_children()
+        treeview.delete(*children)
+
+    @classmethod
+    def add_treeview_row(self, treeview, iid, context):
+        treeview.insert("", "end", values=(int_to_phonetic(iid), context), iid=iid)
+
+    @classmethod
+    def edit_treeview_row(self, treeview, iid, context):
+        treeview.item(iid=iid, values=(int_to_phonetic(iid), context))
