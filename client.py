@@ -4,7 +4,7 @@ from tkinter import scrolledtext
 from tkinter import ttk
 from src.logger.logger import get_logger
 from src.classes.client_gui import ClientGUI
-from src.utils.words_util import iid_context_to_values
+from src.utils.words_util import letter_to_int
 from src.classes.data_handler import DataHandler
 from src.utils.socket_util import get_socket_id
 from errno import ENOTSOCK
@@ -14,7 +14,7 @@ log = get_logger("client.py")
 
 TESTING = True
 testing_address = "127.0.0.1"
-testing_port = 1375
+testing_port = 13750
 testing_callsign = "Red Crown"
 testing_password = "1234"
 
@@ -80,10 +80,11 @@ class Client(tk.Tk):
             self.listen_thread = threading.Thread(target=self.listen_to_server)
             self.listen_thread.daemon = True
             self.listen_thread.start()
-        except ConnectionRefusedError:
+        except ConnectionRefusedError as e:
             log.debug(
                 f"Attempted connection: {self.address}:{self.port} - Connection Refused"
             )
+            log.debug(e)
             self.set_connect_feedback(text="Connection Refused")
             # self.connect_button.config(fg="red")
 
@@ -141,17 +142,47 @@ class Client(tk.Tk):
         self.address_text.insert(0, address)
         self.port_text.insert(0, port)
         self.callsign_text.insert(0, callsign)
-        self.password_text.insert(0, "1234")
+        self.password_text.insert(0, password)
 
     def set_connect_feedback(self, text):
         self.connect_feedback_label.config(text=text)
 
     def update_words(self):
+        feedback = self.words_input_feedback_label
+        if not self.connected:
+            feedback.config(text="Not connected")
+            log.detail(
+                f"Tried updating words, but not connected: {self.client_socket=}"
+            )
+            return
         word = self.words_input_word_entry.get()
-        text = self.words_input_text.get()
-        if not self.check_indicators_in_text_list([text]):
-
-            pass
+        if not word:
+            feedback.config(text="No WORD in input")
+            log.trace(f"No WORD in input {word=}")
+            return
+        feedback.config(text="")
+        # 1.0 = line 1, character 0; end-1c = end of text without adding newline
+        # https://stackoverflow.com/a/14824164
+        text = self.words_input_text.get("1.0", "end-1c")
+        remove = self.words_input_remove.instate(["selected"])
+        log.trace(f"Update words: {word=}, {text=}, {remove=}")
+        if self.check_indicators_in_text_list([text, word]):
+            feedback.config(text="Invalid characters in input: †‡")
+            log.detail(f"Invalid characters in input: †‡ {text=} {word=}")
+            return
+        word_index = letter_to_int(word)
+        if remove:
+            message = {"WORDS": {"REMOVE": [word_index]}}
+        else:
+            existing_words = self.words_treeview.get_children()
+            log.trace(f"Existing words: {existing_words}\n\t{word_index=}")
+            if str(word_index) in existing_words:
+                message = {"WORDS": {"EDIT": {word_index: text}}}
+            else:
+                message = {"WORDS": {"ADD": {word_index: text}}}
+        DataHandler.send_dict_message_to_sockets([self.client_socket], message)
+        self.words_input_word_entry.delete(0, "end")
+        self.words_input_text.delete("1.0", "end")
 
     def check_indicators_in_text_list(self, text_list: list[str]):
         indicators = set("†‡")
@@ -169,10 +200,13 @@ class Client(tk.Tk):
             # don't want to block on get() as it would prevent breaking the while loop
             client_socket, data = self.server_message_queue.get()
             socket_id = get_socket_id(client_socket)
-
+            # ============== status/time ==============
+            time = data.get("time")
+            status = data.get("status")
+            if status:
+                self.process_message_status_code(status)
             # ============== Init ==============
-            init = data.get("Init", {})
-            if init:  # init only sent to server
+            if init := data.get("Init", {}):  # init only sent to server
                 log.warning(f"Init data received from server, not expected.\n\t{data}")
             # ============== Meta ==============
             meta = data.get("Meta", {})
@@ -190,22 +224,46 @@ class Client(tk.Tk):
                 log.info("Client is now authenticated")
                 self.set_connect_feedback("Authenticated")
             # ============== WORDS ==============
+            words = data.get("WORDS", {})
             # add
-            words_add = data.get("WORDS", {}).get("ADD", {})
-            for iid, context in words_add.items():
+            for iid, context in words.get("ADD", {}).items():
                 ClientGUI.add_treeview_row(self.words_treeview, iid, context)
-            # remove
-            words_remove = data.get("WORDS", {}).get("REMOVE", [])
-            for iid in words_remove:
-                ClientGUI.remove_treeview_row(self.words_treeview, iid)
             # edit
-            words_edit = data.get("WORDS", {}).get("EDIT", {})
-            for iid, context in words_edit.items():
+            for iid, context in words.get("EDIT", {}).items():
                 ClientGUI.edit_treeview_row(self.words_treeview, iid, context)
+            # remove
+            for iid in words.get("REMOVE", []):
+                ClientGUI.remove_treeview_row(self.words_treeview, iid)
             # ============== Users ==============
             users = data.get("Users", {})
 
         log.debug("Processing thread closed")
+
+    def process_message_status_code(self, status):
+        status_str = f"Status: {status} - "
+        match status:
+            case 100:
+                pass
+            case 400:
+                log.warning(
+                    status_str
+                    + "Client is not authenticated and did not provide Init data"
+                )
+            case 410:
+                log.debug(status_str + "client tried to ADD when WORD already exists")
+                self.words_input_feedback_label.config(
+                    text="Adding WORD already exists"
+                )
+            case 411:
+                log.debug(status_str + "client tried to EDIT when WORD doesn't exist")
+                self.words_input_feedback_label.config(
+                    text="Editing WORD which doesn't exist"
+                )
+            case 412:
+                log.debug(status_str + "client tried to REMOVE when WORD doesn't exist")
+                self.words_input_feedback_label.config(
+                    text="Removing WORD which doesn't exist"
+                )
 
 
 if __name__ == "__main__":

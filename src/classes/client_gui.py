@@ -71,9 +71,6 @@ class ClientGUI:
 
     @classmethod
     def setup_tab_tactical(self, window, tab):
-        test_txt = "I saw a blind man in Amsterdam\nWith a box around his neck"
-        test_txt2 = "I saw a blind man in Amsterdam With a box around his neck"
-
         # ================== WORDS input ==================
         # frame
         window.words_input_labelframe = ttk.LabelFrame(
@@ -95,13 +92,16 @@ class ClientGUI:
         window.words_input_remove = ttk.Checkbutton(
             input_frame, command=self.toggle_words_input_text
         )
-        # alternate is default for ttk.Checkbutton
+        #   alternate is default for ttk.Checkbutton, make button unselected
         window.words_input_remove.state(["!alternate"])
-        # window.words_input_remove.state(["!selected"])
+        #   window.words_input_remove.state(["!selected"]) # not needed(?)
         window.words_input_remove.grid(row=0, column=3, sticky="w")
         # WORD text
         window.words_input_text = tk.Text(input_frame, width=30, height=5)
-        window.words_input_text.grid(row=1, column=0, columnspan=2)
+        window.words_input_text.grid(row=1, column=0, columnspan=3)
+        # WORDS feedback
+        window.words_input_feedback_label = tk.Label(input_frame, text="")
+        window.words_input_feedback_label.grid(row=2, column=0, columnspan=2)
         # WORDS update button
         window.words_input_update_button = tk.Button(
             input_frame, text="Update", command=window.update_words
@@ -196,4 +196,9 @@ class ClientGUI:
 
     @classmethod
     def edit_treeview_row(self, treeview, iid, context):
-        treeview.item(iid=iid, values=(int_to_phonetic(iid), context))
+        # treeview.item(iid=iid, text=(int_to_phonetic(iid), context))
+        treeview.set(iid, "Content", context)
+
+    @classmethod
+    def remove_treeview_row(self, treeview, iid):
+        treeview.delete(iid)
