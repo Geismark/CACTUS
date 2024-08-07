@@ -35,7 +35,9 @@ test_phonetic_dict = {
 
 # ========================= iid_context_to_values =========================
 def test_iid_context_to_values():
-    pass
+    context = "test abc"
+    for iid in range(26):
+        assert iid_context_to_values(iid, context) == (test_phonetic_dict[iid], context)
 
 
 # ========================= int_to_letter =========================
