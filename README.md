@@ -1,3 +1,5 @@
+[![Code style: black](https://img.shields.io/badge/code%20style-black-000000.svg)](https://github.com/psf/black)
+
 # Command And Control Unification Software (CACTUS)
 
 CACTUS is a program that centralises data for Command and Control (C2) agencies in military aviation simulations such as Digital Combat Simulator (DCS).

@@ -1,3 +1,6 @@
+from logger import logger as log -> init log in logger.py and just import from there
+
+
 General:
 ADD UNIT TESTS
 able to hook errors and log before raised? must ignore try-excepts
@@ -22,6 +25,13 @@ sort treeview: https://stackoverflow.com/questions/22032152/python-ttk-treeview-
 add linter
 sort word treeview by iid (A->Z)
 sort user treeview by iid (socket fileno)
+
+
+tidy up
+make smaller functions (many in class is fine)
+clear up comments
+remove unused code
+
 
 Feedback:
 - add ATOs
