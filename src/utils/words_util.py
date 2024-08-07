@@ -4,6 +4,7 @@ def iid_context_to_values(iid, context: str) -> tuple:
 
 def int_to_letter(num: int) -> str:
     num = int(num)
+    # "0" -> "a" is desired, as that is how the WORDS selection is saved
     if 0 <= num <= 25:
         return chr(num + 65)
     elif 65 <= num <= 90:
@@ -24,6 +25,8 @@ def int_to_phonetic(num: int) -> str:
 
 def letter_to_int(letter: str) -> int:
     letter = letter.upper()
+    if len(letter) != 1:
+        raise ValueError(f"Invalid letter: {letter}")
     if "A" <= letter <= "Z":
         return ord(letter) - 65
     else:
