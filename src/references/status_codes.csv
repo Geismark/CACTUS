@@ -1,0 +1,20 @@
+code, meaning
+100s, informational
+200s, successful
+300s, 
+400s, client error
+500s, server error
+600s,
+700s,
+800s,
+900s,
+
+
+100, client setup
+101, generic mass client update
+
+
+400, client is not authenticated and hasn't provided Init data
+410, client tried to ADD when WORD already exists
+411, client tried to EDIT when WORD doesn't exist
+412, client tried to REMOVE when WORD doesn't exist
