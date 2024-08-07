@@ -1,3 +1,6 @@
+from logger import logger as log -> init log in logger.py and just import from there
+
+
 General:
 ADD UNIT TESTS
 able to hook errors and log before raised? must ignore try-excepts
