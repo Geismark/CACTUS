@@ -1,12 +1,14 @@
 import socket, traceback, threading
 from queue import Queue
 from src.logger.logger import get_logger
+import src.logger.__init__ as log_init
 from src.classes.data_handler import DataHandler
 from datetime import datetime
 from src.utils.socket_util import get_socket_id
 import copy
 
-log = get_logger("server.py", custom_file_name_start="server_")
+log_init.server_custom_file_start = True
+log = get_logger("Server")
 RECV_SIZE = 4096
 
 

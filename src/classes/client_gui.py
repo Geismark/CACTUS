@@ -9,7 +9,7 @@ class ClientGUI:
 
     @classmethod
     def gui_setup(self, window: tk.Tk):
-        self.log = get_logger(__name__)
+        self.log = get_logger("ClientGUI")
         self.log.trace("Starting ClientGUI setup")
         self.window = window
         # window.geometry("795x235") # BELOW IS TESTING SIZE

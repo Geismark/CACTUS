@@ -16,8 +16,10 @@ from datetime import datetime
 
 try:
     from src.logger.logger_settings import LoggerSettings
+    import src.logger.__init__ as log_init
 except ModuleNotFoundError:
     from logger_settings import LoggerSettings
+    import __init__ as log_init
 
 
 def get_logger(name, settings_class=None, custom_file_name_start=None):
@@ -25,11 +27,18 @@ def get_logger(name, settings_class=None, custom_file_name_start=None):
         settings = LoggerSettings()
     else:
         settings = settings_class
+
+    # this method is messy, but works for now until I decide for certain what method to use here
     if custom_file_name_start is None:
         custom_file_name_start = ""
+        if log_init.server_custom_file_start:
+            custom_file_name_start = "server_"
 
     logger = logging.getLogger(name)
-    logger.setLevel(logging.TRACE)  # Capture everything internally @ value 1 (lowest)
+    # logger.setLevel(logging.TRACE)  # Capture everything internally @ value 1 (lowest)
+    logger.setLevel(
+        min(settings.FILE_LOG_LEVEL_RANGE_MIN, settings.CONSOLE_LOG_LEVEL)
+    )  # Capture the minimum level set to the file/console handler
 
     # Console Handler
     if settings.CONSOLE_LOG_ENABLED:
@@ -48,13 +57,13 @@ def get_logger(name, settings_class=None, custom_file_name_start=None):
         os.makedirs(settings.LOG_FOLDER, exist_ok=True)
         # Set log file name (time format NOT what is printed to file)
         current_time = datetime.now().strftime("%Y-%m-%d_%H-%M-%S")
-        file_name = f"{custom_file_name_start}log-{current_time}-[{settings.FILE_LOG_LEVEL_RANGE[0]}-{settings.FILE_LOG_LEVEL_RANGE[1]}].txt"
+        file_name = f"{custom_file_name_start}log-{current_time}-[{settings.FILE_LOG_LEVEL_RANGE_MIN}-{settings.FILE_LOG_LEVEL_RANGE_MAX}].log"
         file_path = os.path.join(settings.LOG_FOLDER, file_name)
 
         file_handler = logging.FileHandler(file_path)
-        file_handler.setLevel(settings.FILE_LOG_LEVEL_RANGE[0])
+        file_handler.setLevel(settings.FILE_LOG_LEVEL_RANGE_MIN)
         file_handler.addFilter(
-            lambda record: record.levelno <= settings.FILE_LOG_LEVEL_RANGE[1]
+            lambda record: record.levelno <= settings.FILE_LOG_LEVEL_RANGE_MAX
         )
         file_handler.setFormatter(
             logging.Formatter(settings.FILE_MESSAGE_FORMAT, settings.FILE_TIME_FORMAT)
@@ -90,5 +99,11 @@ def test_logger():
 
 # logger manual check
 if __name__ == "__main__":
-    logger = get_logger("CustomLoggerMain")
+    from logger_settings import LoggerSettings
+
+    settings = LoggerSettings()
+    settings.FILE_LOG_LEVEL_RANGE_MIN = logging.TRACE
+    settings.FILE_LOG_LEVEL_RANGE_MAX = logging.CRITICAL
+    settings.CONSOLE_LOG_LEVEL = logging.TRACE
+    logger = get_logger("CustomLoggerMain", settings_class=settings)
     test_logger()

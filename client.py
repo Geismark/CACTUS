@@ -10,7 +10,7 @@ from src.utils.socket_util import get_socket_id
 from errno import ENOTSOCK
 from queue import Queue
 
-log = get_logger("client.py")
+log = get_logger("Client")
 
 TESTING = True
 testing_address = "127.0.0.1"

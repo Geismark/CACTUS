@@ -6,7 +6,7 @@ from src.utils.words_util import int_to_phonetic
 
 
 class DataHandler:
-	log = get_logger(__name__)
+	log = get_logger("DataHandler")
 	log.trace("DataHandler class loaded")
 
 	def __init__(self, client_socket, output_dict_queue):
