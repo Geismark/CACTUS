@@ -1,0 +1,22 @@
+# "poetry install" may throw a warning: "No file/folder found for package cactus"
+# Might be to do with package name actually being "CACTUS" (doesn't seem to like uppercase)
+# "poetry install" will still install what's required
+# can run "poetry install --no-root" to avoid the warning
+
+[tool.poetry]
+name = "cactus"
+version = "0.1.0"
+description = ""
+authors = ["Geismark <geismark@btinternet.com>"]
+readme = "README.md"
+
+[tool.poetry.dependencies]
+python = "3.12.1"
+pytest = "8.3.2"
+
+[tool.poetry.group.dev.dependencies]
+black = "24.3.0"
+
+[build-system]
+requires = ["poetry-core"]
+build-backend = "poetry.core.masonry.api"
