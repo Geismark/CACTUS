@@ -233,7 +233,7 @@ class Client(tk.Tk):
             return
         log.trace(f"Sending chat message: {message=}")
         self.chat_input_entry.delete(0, "end")
-        message_dict = {"Chat": message}
+        message_dict = {"Chat": {"ADD": [message]}}
         DataHandler.send_dict_message_to_sockets([self.client_socket], message_dict)
 
     def check_indicators_in_text_list(self, text_list: list[str]):
@@ -302,6 +302,10 @@ class Client(tk.Tk):
             # remove
             for iid in users.get("REMOVE", []):
                 ClientGUI.remove_treeview_row(self.users_treeview, iid)
+            # ============== Chat ==============
+            chat = data.get("Chat", {})
+            for index, message in chat.get("ADD", {}).items():
+                ClientGUI.add_chat_message(message)
 
         log.info("Processing thread closed (disconnected)")
 

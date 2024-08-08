@@ -1,9 +1,10 @@
 import re
 import tkinter as tk
-from tkinter import ttk
+from tkinter import ttk, scrolledtext
 from src.logger.logger import get_logger
 from src.classes.data_handler import DataHandler
 from src.utils.words_util import int_to_phonetic
+from src.utils.chat_utils import message_data_list_to_str
 
 
 class ClientGUI:
@@ -209,9 +210,9 @@ class ClientGUI:
     @classmethod
     def setup_tab_chat(self, window, tab):
         # chat
-        window.chat_text = tk.Text(tab, width=90, height=13)
-        window.chat_text.pack(fill="both", expand=True)
-        window.chat_text.config(state="disabled")
+        window.chat_scrolled_text = scrolledtext.ScrolledText(tab, width=90, height=13)
+        window.chat_scrolled_text.pack()
+        window.chat_scrolled_text.config(state="disabled")
         # chat input
         window.chat_input_entry = tk.Entry(tab, width=90)
         window.chat_input_entry.pack(side="left", fill="x", expand=True)
@@ -320,6 +321,13 @@ class ClientGUI:
             if v_list[0] == iid:
                 values = v_list
         self.users_dropdown_var.set(f"[{values[0]}] {values[1]}")
+
+    @classmethod
+    def add_chat_message(self, message):
+        message_str = message_data_list_to_str(message, show_timestamp=True)
+        self.window.chat_scrolled_text.config(state="normal")
+        self.window.chat_scrolled_text.insert("end", message_str)
+        self.window.chat_scrolled_text.config(state="disabled")
 
 
 # TODO sort treeview: https://stackoverflow.com/questions/22032152/python-ttk-treeview-sort-numbers
