@@ -10,6 +10,7 @@ class ClientGUI:
     @classmethod
     def gui_setup(self, window: tk.Tk):
         self.log = get_logger("ClientGUI")
+
         self.log.trace("Starting ClientGUI setup")
         self.window = window
         # window.geometry("795x235") # BELOW IS TESTING SIZE
@@ -21,6 +22,8 @@ class ClientGUI:
         window.notebook.add(window.tab_connect, text="Connect")
         window.tab_tactical = ttk.Frame(window.notebook)
         window.notebook.add(window.tab_tactical, text="Tactical")
+        window.tab_users = ttk.Frame(window.notebook)
+        window.notebook.add(window.tab_users, text="Users")
         window.notebook.pack()
         window.notebook.bind("<<NotebookTabChanged>>", None)
         # reminder on how to hide/disable tabs for later
@@ -28,6 +31,7 @@ class ClientGUI:
         # self.notebook.tab(self.tab_tactical, state="disabled")
         self.setup_tab_connect(window, window.tab_connect)
         self.setup_tab_tactical(window, window.tab_tactical)
+        self.setup_tab_users(window, window.tab_users)
         self.log.trace("ClientGUI setup complete")
 
     @classmethod
@@ -59,15 +63,6 @@ class ClientGUI:
         window.connect_button.grid(row=2, column=3, sticky="e")
         window.connect_feedback_label = tk.Label(tab, text="")
         window.connect_feedback_label.grid(row=2, column=0, columnspan=3)
-        # JSON TEST button
-        window.json_test_button = tk.Button(
-            tab, text="JSON Test", command=self.json_test
-        )
-        window.json_test_button.grid(row=3, column=3, sticky="e")
-
-    @classmethod
-    def json_test(self):
-        DataHandler.json_test(self.window.client_socket)
 
     @classmethod
     def setup_tab_tactical(self, window, tab):
@@ -136,33 +131,66 @@ class ClientGUI:
         # set column names
         for col in cols:
             window.words_treeview.heading(col, text=col)
-        # --------------- Testing ---------------
-        window.words_treeFrameExtras = ttk.Frame(tab)
-        extra_frame = window.words_treeFrameExtras
-        extra_frame.grid(row=1, column=2)
-        # test add button
-        # window.words_test_button = tk.Button(
-        #     extra_frame,
-        #     text="Test",
-        #     command=lambda: self.add_treeview_row(window.words_treeview),
-        # )
-        # window.words_test_button.grid(row=0, column=0)
-        # test reset button
-        window.words_test_button = tk.Button(
-            extra_frame,
-            text="Reset",
-            command=lambda: self.reset_treeview(window.words_treeview),
+
+    @classmethod
+    def setup_tab_users(self, window, tab):
+        # ================== Edit User Notes input ==================
+        # frame
+        window.users_input_labelframe = ttk.LabelFrame(
+            tab, text="Edit User Notes", height=400
         )
-        window.words_test_button.grid(row=0, column=1)
-        # test 2
-        # window.words_test_button2 = tk.Button(
-        #     extra_frame,
-        #     text="Reset",
-        #     command=lambda: self.edit_treeview_row(
-        #         window.words_treeview, 2, (2, "test")
-        #     ),
-        # )
-        # window.words_test_button2.grid(row=0, column=2)
+        input_frame = window.users_input_labelframe
+        input_frame.grid(row=0, column=0)
+
+        # User select dropdown (combobox)
+        window.users_input_user_label = tk.Label(input_frame, text="User:")
+        window.users_input_user_label.grid(row=0, column=0, sticky="w")
+        window.users_select_user_combobox = ttk.Combobox(
+            input_frame, width=10, textvariable="User"
+        )
+        window.users_select_user_combobox.grid(row=0, column=1, sticky="w")
+        self.update_user_dropdown_options()
+
+        # User edit text
+        window.users_input_edit_text = tk.Text(input_frame, width=30, height=5)
+        window.users_input_edit_text.grid(row=1, column=0, columnspan=2)
+        # Users feedback
+        window.users_input_feedback_label = tk.Label(input_frame, text="")
+        window.users_input_feedback_label.grid(row=2, column=0)
+        # Users update button
+        window.users_input_update_button = tk.Button(
+            input_frame, text="Update", command=window.update_users
+        )
+        window.users_input_update_button.grid(row=2, column=1, sticky="e")
+
+        # ================== WORDS seperator ==================
+        window.users_seperator = ttk.Separator(tab)
+        window.users_seperator.grid(row=0, column=1, padx=5, sticky="ns")
+        # ================== WORDS table ==================
+        # frame
+        window.users_treeFrame = ttk.LabelFrame(tab, text="Users")
+        tree_frame = window.users_treeFrame
+        tree_frame.grid(row=0, column=2)
+        # scrollbar init
+        treeScroll = ttk.Scrollbar(tree_frame, orient="vertical")
+        treeScroll.pack(side="right", fill="y")
+        # treeview & scrollbar config
+        cols = ("Users", "Notes")
+        window.users_treeview = ttk.Treeview(
+            tree_frame,
+            columns=cols,
+            show="headings",
+            height=8,
+            yscrollcommand=treeScroll.set,
+        )
+        window.users_treeview.pack()
+        treeScroll.config(command=window.users_treeview.yview)
+        # set column width
+        window.users_treeview.column("Users", width=60, anchor="center")
+        window.users_treeview.column("Notes", width=380, anchor="w")
+        # set column names
+        for col in cols:
+            window.users_treeview.heading(col, text=col)
 
     @classmethod
     def validate_word_input(self, result):
@@ -191,8 +219,12 @@ class ClientGUI:
         treeview.delete(*children)
 
     @classmethod
-    def add_treeview_row(self, treeview, iid, context):
+    def add_words_treeview_row(self, treeview, iid, context):
         treeview.insert("", "end", values=(int_to_phonetic(iid), context), iid=iid)
+
+    @classmethod
+    def add_users_treeview_row(self, treeview, iid, user_note_list):
+        treeview.insert("", "end", values=user_note_list, iid=iid)
 
     @classmethod
     def edit_treeview_row(self, treeview, iid, context):
@@ -202,3 +234,24 @@ class ClientGUI:
     @classmethod
     def remove_treeview_row(self, treeview, iid):
         treeview.delete(iid)
+
+    @classmethod
+    def get_user_list(self):
+        try:
+            users = self.window.users_treeview.get_children()
+        except AttributeError:
+            users = []
+        return users
+
+    @classmethod
+    def update_user_dropdown_options(self):
+        users_list = self.get_user_list()
+        self.window.users_select_user_combobox["values"] = users_list
+
+    @classmethod
+    def reset_gui(self):
+        self.reset_treeview(self.window.words_treeview)
+        self.reset_treeview(self.window.users_treeview)
+
+
+# TODO sort treeview: https://stackoverflow.com/questions/22032152/python-ttk-treeview-sort-numbers

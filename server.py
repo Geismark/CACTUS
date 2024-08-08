@@ -22,11 +22,13 @@ class ServerManager:
         self.data_queue = Queue()  # [[client_socket, json.loads(msg_dict)], ...]
         self.port = int(port)
         self.password = password
-        self.clients = {}  # conn: {} - will likely use list value later
+        self.clients = {}
         self.new_clients = {}
         self.run_client_threads = True
-        self.data_state = {"WORDS": {"ADD": {}}}
+        self.data_state = {"WORDS": {"ADD": {}}, "Users": {"ADD": {}}}
         self.words_state = self.data_state["WORDS"]["ADD"]
+        # ADD: {fileno: [callsign, notes]}
+        self.users_notes_dict = self.data_state["Users"]["ADD"]
         # AF_INET -> IPv4   SOCK_STREAM -> TCP
         # with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as self.server_sock:
         self.server_sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
@@ -98,7 +100,7 @@ class ServerManager:
                 log.info(f"Client forcibly disconnected: {client_id}")
                 thread_client_connected = False
                 break
-        self.remove_client_from_client_dicts(client_socket)
+        self.remove_client_from_client_dicts_and_users(client_socket)
         # shutdown(2) = SHUT_RDWR meaning no more reads or writes
         client_socket.shutdown(2)
         client_socket.close()
@@ -106,10 +108,6 @@ class ServerManager:
 
     def process_data_thread(self):
         while self.run_client_threads:
-            # "if Queue" returns True, even if empty
-            if not self.data_queue.empty():
-                continue
-            # don't want to block on get() as it would prevent breaking the while loop
             client_socket, message = self.data_queue.get()
             print(f"{self.words_state=}")
             log.debug(f"Processing message from: {client_socket}\n\t{message}")
@@ -138,7 +136,7 @@ class ServerManager:
         # ============== Meta ==============
         if meta := data.get("Meta", {}):
             pass
-        # ============== Words ==============
+        # ============== WORDS ==============
         if words := data.get("WORDS", {}):
             if add := words.get("ADD"):
                 for word_index, context in add.items():
@@ -177,57 +175,70 @@ class ServerManager:
                     self.broadcast_update_all_clients(
                         {"WORDS": {"REMOVE": [word_index]}}
                     )
+        # ============== Users ==============
 
     def broadcast_update_all_clients(self, dict_message):
         DataHandler.send_dict_message_to_sockets(self.clients.keys(), dict_message)
 
-    def send_new_client_setup(self, client_socket):
-        test_dict = {"WORDS": {"ADD": {0: "Texaco INOP", 1: "Magic Midnight"}}}
-        DataHandler.send_dict_message_to_sockets([client_socket], test_dict)
-
     def authenticate_new_client(self, client_socket, message_dict):
-        if not message_dict.get("Init", {}).get("password") == self.password:
-            DataHandler.send_dict_message_to_sockets(
-                [client_socket], {"Meta": {"password": False}}
-            )
-            return False
+        if not self.validate_password(client_socket, message_dict):
+            return
         if not self.validate_callsign(
-            callsign := message_dict.get("Init", {}).get("callsign")
+            client_socket, callsign := message_dict.get("Init", {}).get("callsign")
         ):
-            DataHandler.send_dict_message_to_sockets(
-                [client_socket], {"Meta": {"callsign": False}}
-            )
-            return False
-
-        self.clients[client_socket] = self.new_clients.pop(client_socket)
-        self.clients[client_socket]["callsign"] = callsign
+            return
         if requests_setup := message_dict.get("Init", {}).get("request_setup"):
             log.detail(f"Client requests setup: {get_socket_id(client_socket)}")
             self.send_client_setup_or_resync(client_socket, status_code=100)
         else:
-            log.warning(f"Client did not request setup: {get_socket_id(client_socket)}")
+            log.debug(f"Client did not request setup: {get_socket_id(client_socket)}")
+        # "add user" must come after setup sent, otherwise sent twice
+        self.add_client_and_callsign_to_dicts(client_socket, callsign)
         DataHandler.send_dict_message_to_sockets(
             [client_socket], {"Meta": {"authenticated": True}}
         )
         return True
 
-    def remove_client_from_client_dicts(self, client_socket):
+    def validate_password(self, client, message_dict):
+        if not message_dict.get("Init", {}).get("password") == self.password:
+            DataHandler.send_dict_message_to_sockets(
+                [client], {"Meta": {"password": False}}
+            )
+            return False
+        return True
+
+    def add_client_and_callsign_to_dicts(self, client_socket, callsign):
+        self.clients[client_socket] = self.new_clients.pop(client_socket)
+        self.clients[client_socket]["callsign"] = callsign
+        self.users_notes_dict[client_socket.fileno()] = [callsign, "None"]
+        self.broadcast_update_all_clients(
+            {"Users": {"ADD": {client_socket.fileno(): [callsign, "None"]}}}
+        )
+
+    def remove_client_from_client_dicts_and_users(self, client_socket):
         self.clients.pop(client_socket, None)
         self.new_clients.pop(client_socket, None)
+        self.users_notes_dict.pop(client_socket.fileno(), None)
+        self.broadcast_update_all_clients(
+            {"Users": {"REMOVE": [client_socket.fileno()]}}
+        )
 
-    def validate_callsign(self, callsign):
-        return len(callsign) >= 3
+    def validate_callsign(self, client_socket, callsign):
+        if not len(callsign) >= 3:
+            DataHandler.send_dict_message_to_sockets(
+                [client_socket], {"Meta": {"callsign": False}}
+            )
+            return False
+        return True
 
     def send_client_setup_or_resync(self, client_socket, status_code=None):
         message = copy.deepcopy(self.data_state)
         if status_code:
             message["status"] = status_code
-        message["Users"] = {"ADD": self.get_callsigns_list()}
+        else:
+            status_code = 100
+        message["Users"] = {"ADD": self.users_notes_dict}
         DataHandler.send_dict_message_to_sockets([client_socket], message)
-
-    def get_callsigns_list(self):
-        callsigns = [socket_data["callsign"] for socket_data in self.clients.values()]
-        return callsigns
 
 
 if __name__ == "__main__":
