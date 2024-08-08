@@ -1,4 +1,4 @@
-import socket, threading, traceback
+import socket, threading, traceback, re
 import tkinter as tk
 from tkinter import scrolledtext
 from tkinter import ttk
@@ -201,28 +201,30 @@ class Client(tk.Tk):
                 f"Tried updating users, but not connected: {self.client_socket=}"
             )
             return
-        user = self.users_input_user_entry.get()
-        if not user:
+        user_str = self.users_select_user_combobox.get()
+        if not user_str:
             feedback.config(text="No USER in input")
-            log.trace(f"No USER in input {user=}")
+            log.debug(f"No USER in input {user_str=}")
             return
         feedback.config(text="")
+        user_values = ClientGUI.get_user_values_from_user_str(user_str)
+        if user_values == False:
+            feedback.config(text="Invalid USER selected")
+            log.debug(f"Invalid USER selected: {user_str=}")
+            return
+        iid, callsign, note = user_values
+
         # 1.0 = line 1, character 0; end-1c = end of text without adding newline
         # https://stackoverflow.com/a/14824164
-        text = self.users_input_text.get("1.0", "end-1c")
-        remove = self.users_input_remove.instate(["selected"])
-        log.trace(f"Update users: {user=}, {text=}, {remove=}")
-        if self.check_indicators_in_text_list([text, user]):
+        text = self.users_input_edit_text.get("1.0", "end-1c")
+        log.trace(f"Update users: {iid=} {callsign=} {note=} {text=}")
+        if self.check_indicators_in_text_list([text, str(iid)]):
             feedback.config(text="Invalid characters in input: †‡")
-            log.detail(f"Invalid characters in input: †‡ {text=} {user=}")
+            log.detail(f"Invalid characters in input: †‡ {text=} {iid=}")
             return
-        if remove:
-            message = {"USERS": {"REMOVE": [user]}}
-        else:
-            message = {"USERS": {"ADD": {user: text}}}
+        message = {"Users": {"EDIT": {iid: text}}}
         DataHandler.send_dict_message_to_sockets([self.client_socket], message)
-        self.users_input_user_entry.delete(0, "end")
-        self.users_input_text.delete("1.0", "end")
+        self.users_input_edit_text.delete("1.0", "end")
 
     def check_indicators_in_text_list(self, text_list: list[str]):
         indicators = set("†‡")
@@ -281,6 +283,10 @@ class Client(tk.Tk):
             # add
             for iid, user_note_list in users.get("ADD", {}).items():
                 ClientGUI.add_users_treeview_row(
+                    self.users_treeview, iid, user_note_list
+                )
+            for iid, user_note_list in users.get("EDIT", {}).items():
+                ClientGUI.edit_users_treeview_row(
                     self.users_treeview, iid, user_note_list
                 )
             # remove

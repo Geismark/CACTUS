@@ -176,6 +176,22 @@ class ServerManager:
                         {"WORDS": {"REMOVE": [word_index]}}
                     )
         # ============== Users ==============
+        if users := data.get("Users", {}):
+            if add := users.get("ADD"):
+                log.error(
+                    f"User tried to ADD User: {get_socket_id(client_socket)} {data}"
+                )
+            if edit := users.get("EDIT"):
+                for iid, note in edit.items():
+                    self.users_notes_dict[int(iid)][1] = note
+                    user_note_list = self.users_notes_dict[int(iid)]
+                    self.broadcast_update_all_clients(
+                        {"Users": {"EDIT": {iid: user_note_list}}}
+                    )
+            if remove := users.get("REMOVE"):
+                log.error(
+                    f"User tried to REMOVE User: {get_socket_id(client_socket)} {data}"
+                )
 
     def broadcast_update_all_clients(self, dict_message):
         DataHandler.send_dict_message_to_sockets(self.clients.keys(), dict_message)
