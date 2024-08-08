@@ -23,6 +23,8 @@ class ClientGUI:
         window.notebook.add(window.tab_connect, text="Connect")
         window.tab_tactical = ttk.Frame(window.notebook)
         window.notebook.add(window.tab_tactical, text="Tactical")
+        window.tab_chat = ttk.Frame(window.notebook)
+        window.notebook.add(window.tab_chat, text="Chat")
         window.tab_users = ttk.Frame(window.notebook)
         window.notebook.add(window.tab_users, text="Users")
         window.notebook.pack()
@@ -33,6 +35,7 @@ class ClientGUI:
         self.setup_tab_connect(window, window.tab_connect)
         self.setup_tab_tactical(window, window.tab_tactical)
         self.setup_tab_users(window, window.tab_users)
+        self.setup_tab_chat(window, window.tab_chat)
         self.log.trace("ClientGUI setup complete")
 
     @classmethod
@@ -202,6 +205,21 @@ class ClientGUI:
             input_frame, text="Update", command=window.update_users
         )
         window.users_input_update_button.grid(row=2, column=1, sticky="e")
+
+    @classmethod
+    def setup_tab_chat(self, window, tab):
+        # chat
+        window.chat_text = tk.Text(tab, width=90, height=13)
+        window.chat_text.pack(fill="both", expand=True)
+        window.chat_text.config(state="disabled")
+        # chat input
+        window.chat_input_entry = tk.Entry(tab, width=90)
+        window.chat_input_entry.pack(side="left", fill="x", expand=True)
+        # chat send button
+        window.chat_send_button = tk.Button(
+            tab, text="Send", command=window.send_chat_message
+        )
+        window.chat_send_button.pack(side="right")
 
     @classmethod
     def setup_users_seperator(self, window, tab):

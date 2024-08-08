@@ -27,10 +27,14 @@ class ServerManager:
         self.clients = {}
         self.new_clients = {}
         self.run_client_threads = True
-        self.data_state = {"WORDS": {"ADD": {}}, "Users": {"ADD": {}}}
+        self.data_state = {
+            "WORDS": {"ADD": {}},
+            "Users": {"ADD": {}},
+            "Chat": {"ADD": {}},
+        }
         self.words_state = self.data_state["WORDS"]["ADD"]
-        # ADD: {fileno: [callsign, notes]}
         self.users_notes_dict = self.data_state["Users"]["ADD"]
+        self.chat_history = self.data_state["Chat"]["ADD"]
         # AF_INET -> IPv4   SOCK_STREAM -> TCP
         # with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as self.server_sock:
         self.server_sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)

@@ -226,6 +226,16 @@ class Client(tk.Tk):
         DataHandler.send_dict_message_to_sockets([self.client_socket], message)
         self.users_input_edit_text.delete("1.0", "end")
 
+    def send_chat_message(self):
+        message = self.chat_input_entry.get()
+        if not message:
+            log.debug("No message in input: {message=}")
+            return
+        log.trace(f"Sending chat message: {message=}")
+        self.chat_input_entry.delete(0, "end")
+        message_dict = {"Chat": message}
+        DataHandler.send_dict_message_to_sockets([self.client_socket], message_dict)
+
     def check_indicators_in_text_list(self, text_list: list[str]):
         indicators = set("†‡")
         for text in text_list:
