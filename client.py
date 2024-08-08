@@ -46,8 +46,8 @@ class Client(tk.Tk):
         self.client_socket.close()
         self.toggle_connect_tab_elements(False)
         self.set_connect_feedback(text=feedback)
-        self.server_message_queue.put(None)
-        self.server_message_queue = (None, None)
+        self.server_message_queue.put((None, None))
+        self.server_message_queue = None
         log.debug(f"Disconnected from server - threads: {len(threading.enumerate())}")
 
     def connect_to_server(self):
