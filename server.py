@@ -275,7 +275,6 @@ class ServerManager:
             message["status"] = status_code
         else:
             status_code = 100
-        message["Users"] = {"ADD": self.users_notes_dict}
         DataHandler.send_dict_message_to_sockets([client_socket], message)
 
 
