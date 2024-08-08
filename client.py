@@ -1,4 +1,4 @@
-import socket, threading, traceback
+import socket, threading, traceback, re
 import tkinter as tk
 from tkinter import scrolledtext
 from tkinter import ttk
@@ -27,7 +27,8 @@ class Client(tk.Tk):
     def __init__(self):
         self.client_socket = None
         self.connected = False
-        self.server_message_queue = Queue()
+        self.server_message_queue = None
+        self.processing_thread = None
         super().__init__()
         self.gui_setup()
         if TESTING:
@@ -45,8 +46,12 @@ class Client(tk.Tk):
         self.client_socket.close()
         self.toggle_connect_tab_elements(False)
         self.set_connect_feedback(text=feedback)
+        self.server_message_queue.put(None)
+        self.server_message_queue = (None, None)
+        log.debug(f"Disconnected from server - threads: {len(threading.enumerate())}")
 
     def connect_to_server(self):
+        self.server_message_queue = Queue()
         self.client_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
         self.connect_feedback_label.config(text="")
         self.address = self.address_text.get()
@@ -72,11 +77,8 @@ class Client(tk.Tk):
             self.toggle_connect_tab_elements(True)
             self.set_connect_feedback(text="Connection Successful")
             log.debug(f"Connection Successful: {self.address}:{self.port}")
-            self.processing_thread = threading.Thread(
-                target=self.process_message_thread
-            )
-            self.processing_thread.daemon = True
-            self.processing_thread.start()
+            ClientGUI.reset_gui()
+            self.check_processing_thread()
             self.listen_thread = threading.Thread(target=self.listen_to_server)
             self.listen_thread.daemon = True
             self.listen_thread.start()
@@ -87,6 +89,13 @@ class Client(tk.Tk):
             log.debug(e)
             self.set_connect_feedback(text="Connection Refused")
             # self.connect_button.config(fg="red")
+
+    def check_processing_thread(self):
+        if not self.processing_thread or not self.processing_thread.is_alive():
+            self.processing_thread = threading.Thread(
+                target=self.process_message_thread, daemon=True
+            )
+            self.processing_thread.start()
 
     def listen_to_server(self):
         log.debug("Listening thread started")
@@ -184,6 +193,39 @@ class Client(tk.Tk):
         self.words_input_word_entry.delete(0, "end")
         self.words_input_text.delete("1.0", "end")
 
+    def update_users(self):
+        feedback = self.users_input_feedback_label
+        if not self.connected:
+            feedback.config(text="Not connected")
+            log.detail(
+                f"Tried updating users, but not connected: {self.client_socket=}"
+            )
+            return
+        user_str = self.users_select_user_combobox.get()
+        if not user_str:
+            feedback.config(text="No USER in input")
+            log.debug(f"No USER in input {user_str=}")
+            return
+        feedback.config(text="")
+        user_values = ClientGUI.get_user_values_from_user_str(user_str)
+        if user_values == False:
+            feedback.config(text="Invalid USER selected")
+            log.debug(f"Invalid USER selected: {user_str=}")
+            return
+        iid, callsign, note = user_values
+
+        # 1.0 = line 1, character 0; end-1c = end of text without adding newline
+        # https://stackoverflow.com/a/14824164
+        text = self.users_input_edit_text.get("1.0", "end-1c")
+        log.trace(f"Update users: {iid=} {callsign=} {note=} {text=}")
+        if self.check_indicators_in_text_list([text, str(iid)]):
+            feedback.config(text="Invalid characters in input: †‡")
+            log.detail(f"Invalid characters in input: †‡ {text=} {iid=}")
+            return
+        message = {"Users": {"EDIT": {iid: text}}}
+        DataHandler.send_dict_message_to_sockets([self.client_socket], message)
+        self.users_input_edit_text.delete("1.0", "end")
+
     def check_indicators_in_text_list(self, text_list: list[str]):
         indicators = set("†‡")
         for text in text_list:
@@ -195,10 +237,12 @@ class Client(tk.Tk):
     def process_message_thread(self):
         log.debug("Processing thread started")
         while self.connected:
-            if not self.server_message_queue.empty():
-                continue
-            # don't want to block on get() as it would prevent breaking the while loop
             client_socket, data = self.server_message_queue.get()
+            if (client_socket, data) == (None, None):
+                log.debug("Processing thread received None, closing")
+                break
+
+            log.debug(f"Processing message: {data}")
             socket_id = get_socket_id(client_socket)
             # ============== status/time ==============
             time = data.get("time")
@@ -227,7 +271,7 @@ class Client(tk.Tk):
             words = data.get("WORDS", {})
             # add
             for iid, context in words.get("ADD", {}).items():
-                ClientGUI.add_treeview_row(self.words_treeview, iid, context)
+                ClientGUI.add_words_treeview_row(self.words_treeview, iid, context)
             # edit
             for iid, context in words.get("EDIT", {}).items():
                 ClientGUI.edit_treeview_row(self.words_treeview, iid, context)
@@ -236,8 +280,20 @@ class Client(tk.Tk):
                 ClientGUI.remove_treeview_row(self.words_treeview, iid)
             # ============== Users ==============
             users = data.get("Users", {})
+            # add
+            for iid, user_note_list in users.get("ADD", {}).items():
+                ClientGUI.add_users_treeview_row(
+                    self.users_treeview, iid, user_note_list
+                )
+            for iid, user_note_list in users.get("EDIT", {}).items():
+                ClientGUI.edit_users_treeview_row(
+                    self.users_treeview, iid, user_note_list
+                )
+            # remove
+            for iid in users.get("REMOVE", []):
+                ClientGUI.remove_treeview_row(self.users_treeview, iid)
 
-        log.debug("Processing thread closed")
+        log.info("Processing thread closed (disconnected)")
 
     def process_message_status_code(self, status):
         status_str = f"Status: {status} - "

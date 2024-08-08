@@ -15,6 +15,11 @@ code, meaning
 
 
 400, client is not authenticated and hasn't provided Init data
+
+# 410s -> WORDS
 410, client tried to ADD when WORD already exists
 411, client tried to EDIT when WORD doesn't exist
 412, client tried to REMOVE when WORD doesn't exist
+
+# 420s -> USERS
+431, client tried to EDIT when USER doesn't exist

@@ -17,3 +17,10 @@ add ATOs tab (needs planning prior to implementation)
 
 Very rarely, server sends auth successful, client recieves start, but never considers to have recieved 'full' message?
 - haven't had this recently, may have been an issue whilst auth was still WIP
+
+add linter
+reinitialising client queue on connect (= None on disconnect)
+- will processing thread get stuck on old "none" queue due to blocking?
+sort word treeview by iid (A->Z)
+sort user treeview by iid (socket fileno)
+broadcast new user callsigns
