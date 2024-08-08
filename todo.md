@@ -26,6 +26,13 @@ add linter
 sort word treeview by iid (A->Z)
 sort user treeview by iid (socket fileno)
 
+
+tidy up
+make smaller functions (many in class is fine)
+clear up comments
+remove unused code
+
+
 Feedback:
 - add ATOs
 - add sound
