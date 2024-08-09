@@ -42,20 +42,27 @@ class DataHandler:
                 self._check_message_buffer()
 
     def _search_for_message_header(self):
-        data = self.enc_message_buffer
-        if not data or len(data) < 8:
+        buffer = self.enc_message_buffer
+        if not buffer or len(buffer) < 7:
             return
-        if not data.startswith(b"\xe2\x80\xa0"):
+        if b"\xe2\x80\xa1" not in buffer:
+            DataHandler.log.warning(
+                f"buffer length: {len(buffer)} but header close not found: {buffer=}"
+            )
+            return
+        if not buffer.startswith(b"\xe2\x80\xa0"):
             DataHandler.log.error(
-                f"Expected header indicator † not found: {data=}\n\t{data.decoded('utf-8')=}"
+                f"Expected header indicator † not found: {buffer=}\n\t{buffer.decoded('utf-8')=}"
             )
             raise ValueError(
-                f"Expected header indicator † not found: {data=}\n\t{data.decoded('utf-8')=}"
+                f"Expected header indicator † not found: {buffer=}\n\t{buffer.decoded('utf-8')=}"
             )
         self.expected_length = int(
-            re.search(b"\xe2\x80\xa0(\\d+)\xe2\x80\xa1", data).group(1).decode("utf-8")
+            re.search(b"\xe2\x80\xa0(\\d+)\xe2\x80\xa1", buffer)
+            .group(1)
+            .decode("utf-8")
         )
-        self.enc_message_buffer = data.split(b"\xe2\x80\xa1", 1)[1]
+        self.enc_message_buffer = buffer.split(b"\xe2\x80\xa1", 1)[1]
         DataHandler.log.debug(
             f"New header found, expected length: {self.expected_length}, {self.socket_id}"
         )
@@ -98,7 +105,7 @@ class DataHandler:
     @classmethod
     def send_dict_message_to_sockets(self, sockets: list, message_dict: dict) -> None:
         if not sockets:
-            DataHandler.log.warning("No sockets to broadcast to")
+            DataHandler.log.warning(f"No sockets to broadcast to: {message_dict}")
             return
         message_dict["time"] = time.time()
         json_plain = json.dumps(message_dict)
