@@ -225,6 +225,9 @@ class ServerManager:
             client_socket, callsign := message_dict.get("Init", {}).get("callsign")
         ):
             return
+        DataHandler.send_dict_message_to_sockets(
+            [client_socket], {"Meta": {"authenticated": True}}
+        )
         if requests_setup := message_dict.get("Init", {}).get("request_setup"):
             log.detail(f"Client requests setup: {get_socket_id(client_socket)}")
             self.send_client_setup_or_resync(client_socket, status_code=100)
@@ -232,9 +235,6 @@ class ServerManager:
             log.debug(f"Client did not request setup: {get_socket_id(client_socket)}")
         # "add user" must come after setup sent, otherwise sent twice
         self.add_client_and_callsign_to_dicts(client_socket, callsign)
-        DataHandler.send_dict_message_to_sockets(
-            [client_socket], {"Meta": {"authenticated": True}}
-        )
         return True
 
     def validate_password(self, client, message_dict):
