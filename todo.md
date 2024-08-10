@@ -24,3 +24,9 @@ reinitialising client queue on connect (= None on disconnect)
 sort word treeview by iid (A->Z)
 sort user treeview by iid (socket fileno)
 broadcast new user callsigns
+
+Feedback:
+- add ATOs
+- add sound
+- add replay
+- transcription of SRS?
