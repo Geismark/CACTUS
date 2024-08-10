@@ -18,6 +18,9 @@ add ATOs tab (needs planning prior to implementation)
 Very rarely, server sends auth successful, client recieves start, but never considers to have recieved 'full' message?
 - haven't had this recently, may have been an issue whilst auth was still WIP
 
+add client settings
+- 'favourites' to connect
+- keybindings (e.g. 'Enter' functionality, select tab)
 sort treeview: https://stackoverflow.com/questions/22032152/python-ttk-treeview-sort-numbers
 add double click functionality to words treeview edit/remove
 add linter
