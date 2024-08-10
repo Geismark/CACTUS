@@ -216,6 +216,11 @@ class ClientGUI:
         window.users_input_update_button.grid(row=2, column=1, sticky="e")
 
     @classmethod
+    def setup_users_seperator(self, window, tab):
+        window.users_seperator = ttk.Separator(tab)
+        window.users_seperator.grid(row=0, column=1, padx=5, sticky="ns")
+
+    @classmethod
     def setup_tab_chat(self, window, tab):
         # chat
         window.chat_scrolled_text = scrolledtext.ScrolledText(tab, width=90, height=13)
@@ -229,11 +234,6 @@ class ClientGUI:
             tab, text="Send", command=window.send_chat_message
         )
         window.chat_send_button.pack(side="right")
-
-    @classmethod
-    def setup_users_seperator(self, window, tab):
-        window.users_seperator = ttk.Separator(tab)
-        window.users_seperator.grid(row=0, column=1, padx=5, sticky="ns")
 
     @classmethod
     def validate_word_input(self, result):
