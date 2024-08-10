@@ -286,6 +286,7 @@ class Client(tk.Tk):
                 self.process_message_status_code(status)
             self._process_Init(data.get("Init", {}))
             self._process_Meta(data.get("Meta", {}))
+            self._process_WORDS(data.get("WORDS", {}))
             self._process_Users(data.get("Users", {}))
             self._process_Chat(data.get("Chat", {}))
         log.info("Processing thread closing (disconnected)")

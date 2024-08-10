@@ -302,7 +302,6 @@ class ClientGUI:
     def get_user_values_from_user_str(self, user_str):
         values = self.get_values_list_from_treeview(self.window.users_treeview)
         iid = re.search(r"\[(\d+)\]", user_str).group(1)
-        print(f"============= {iid=} {values=}")
         for value in values:
             if str(value[0]) == str(iid):
                 return value
@@ -321,7 +320,6 @@ class ClientGUI:
     @classmethod
     def _user_treeview_double_click_select_user_combobox(self, event):
         children = self.window.users_treeview.get_children()
-        print(f"============= {children=}")
         _selected = self.window.users_treeview.selection()
         values = self.window.users_treeview.item(_selected)["values"]
         iid = self.window.users_treeview.focus()
