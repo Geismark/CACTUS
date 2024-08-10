@@ -46,8 +46,8 @@ class Client(tk.Tk):
         self.client_socket.close()
         self.toggle_connect_tab_elements(False)
         self.set_connect_feedback(text=feedback)
-        self.server_message_queue.put(None)
-        self.server_message_queue = (None, None)
+        self.server_message_queue.put((None, None))
+        self.server_message_queue = None
         log.debug(f"Disconnected from server - threads: {len(threading.enumerate())}")
 
     def connect_to_server(self):
@@ -226,6 +226,16 @@ class Client(tk.Tk):
         DataHandler.send_dict_message_to_sockets([self.client_socket], message)
         self.users_input_edit_text.delete("1.0", "end")
 
+    def send_chat_message(self):
+        message = self.chat_input_entry.get()
+        if not message:
+            log.debug("No message in input: {message=}")
+            return
+        log.trace(f"Sending chat message: {message=}")
+        self.chat_input_entry.delete(0, "end")
+        message_dict = {"Chat": {"ADD": [message]}}
+        DataHandler.send_dict_message_to_sockets([self.client_socket], message_dict)
+
     def check_indicators_in_text_list(self, text_list: list[str]):
         indicators = set("†‡")
         for text in text_list:
@@ -292,6 +302,10 @@ class Client(tk.Tk):
             # remove
             for iid in users.get("REMOVE", []):
                 ClientGUI.remove_treeview_row(self.users_treeview, iid)
+            # ============== Chat ==============
+            chat = data.get("Chat", {})
+            for index, message in chat.get("ADD", {}).items():
+                ClientGUI.add_chat_message(message)
 
         log.info("Processing thread closed (disconnected)")
 

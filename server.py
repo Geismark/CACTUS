@@ -27,10 +27,15 @@ class ServerManager:
         self.clients = {}
         self.new_clients = {}
         self.run_client_threads = True
-        self.data_state = {"WORDS": {"ADD": {}}, "Users": {"ADD": {}}}
+        self.data_state = {
+            "WORDS": {"ADD": {}},
+            "Users": {"ADD": {}},
+            "Chat": {"ADD": {}},
+        }
         self.words_state = self.data_state["WORDS"]["ADD"]
-        # ADD: {fileno: [callsign, notes]}
         self.users_notes_dict = self.data_state["Users"]["ADD"]
+        self.chat_index = 0
+        self.chat_history = self.data_state["Chat"]["ADD"]
         # AF_INET -> IPv4   SOCK_STREAM -> TCP
         # with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as self.server_sock:
         self.server_sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
@@ -194,6 +199,21 @@ class ServerManager:
                 log.error(
                     f"User tried to REMOVE User: {get_socket_id(client_socket)} {data}"
                 )
+        # ============== Chat ==============
+        if chat := data.get("Chat", {}):
+            if add := chat.get("ADD"):
+                time = datetime.now().strftime("%H:%M:%S")
+                for message in add:
+                    message_data = [time, f"[{client_socket.fileno()}] {self.clients[client_socket]["callsign"]}", message]
+                    self.chat_history[self.chat_index] = message_data
+                    self.broadcast_update_all_clients(
+                        {"Chat": {"ADD": {self.chat_index: message_data}}}
+                    )
+                    self.chat_index += 1
+            if edit := chat.get("EDIT"):
+                log.warning(f"Chat edit doesn't exist: {chat=}")
+            if remove := chat.get("REMOVE"):
+                log.warning(f"Chat remove doesn't exist: {chat=}")
 
     def broadcast_update_all_clients(self, dict_message):
         DataHandler.send_dict_message_to_sockets(self.clients.keys(), dict_message)
@@ -205,6 +225,9 @@ class ServerManager:
             client_socket, callsign := message_dict.get("Init", {}).get("callsign")
         ):
             return
+        DataHandler.send_dict_message_to_sockets(
+            [client_socket], {"Meta": {"authenticated": True}}
+        )
         if requests_setup := message_dict.get("Init", {}).get("request_setup"):
             log.detail(f"Client requests setup: {get_socket_id(client_socket)}")
             self.send_client_setup_or_resync(client_socket, status_code=100)
@@ -212,9 +235,6 @@ class ServerManager:
             log.debug(f"Client did not request setup: {get_socket_id(client_socket)}")
         # "add user" must come after setup sent, otherwise sent twice
         self.add_client_and_callsign_to_dicts(client_socket, callsign)
-        DataHandler.send_dict_message_to_sockets(
-            [client_socket], {"Meta": {"authenticated": True}}
-        )
         return True
 
     def validate_password(self, client, message_dict):
@@ -255,7 +275,6 @@ class ServerManager:
             message["status"] = status_code
         else:
             status_code = 100
-        message["Users"] = {"ADD": self.users_notes_dict}
         DataHandler.send_dict_message_to_sockets([client_socket], message)
 
 

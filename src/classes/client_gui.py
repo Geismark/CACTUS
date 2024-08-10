@@ -1,9 +1,10 @@
 import re
 import tkinter as tk
-from tkinter import ttk
+from tkinter import ttk, scrolledtext
 from src.logger.logger import get_logger
 from src.classes.data_handler import DataHandler
 from src.utils.words_util import int_to_phonetic
+from src.utils.chat_utils import message_data_list_to_str
 
 
 class ClientGUI:
@@ -23,6 +24,8 @@ class ClientGUI:
         window.notebook.add(window.tab_connect, text="Connect")
         window.tab_tactical = ttk.Frame(window.notebook)
         window.notebook.add(window.tab_tactical, text="Tactical")
+        window.tab_chat = ttk.Frame(window.notebook)
+        window.notebook.add(window.tab_chat, text="Chat")
         window.tab_users = ttk.Frame(window.notebook)
         window.notebook.add(window.tab_users, text="Users")
         window.notebook.pack()
@@ -33,6 +36,7 @@ class ClientGUI:
         self.setup_tab_connect(window, window.tab_connect)
         self.setup_tab_tactical(window, window.tab_tactical)
         self.setup_tab_users(window, window.tab_users)
+        self.setup_tab_chat(window, window.tab_chat)
         self.log.trace("ClientGUI setup complete")
 
     @classmethod
@@ -204,6 +208,21 @@ class ClientGUI:
         window.users_input_update_button.grid(row=2, column=1, sticky="e")
 
     @classmethod
+    def setup_tab_chat(self, window, tab):
+        # chat
+        window.chat_scrolled_text = scrolledtext.ScrolledText(tab, width=90, height=13)
+        window.chat_scrolled_text.pack()
+        window.chat_scrolled_text.config(state="disabled")
+        # chat input
+        window.chat_input_entry = tk.Entry(tab, width=90)
+        window.chat_input_entry.pack(side="left", fill="x", expand=True)
+        # chat send button
+        window.chat_send_button = tk.Button(
+            tab, text="Send", command=window.send_chat_message
+        )
+        window.chat_send_button.pack(side="right")
+
+    @classmethod
     def setup_users_seperator(self, window, tab):
         window.users_seperator = ttk.Separator(tab)
         window.users_seperator.grid(row=0, column=1, padx=5, sticky="ns")
@@ -302,6 +321,13 @@ class ClientGUI:
             if v_list[0] == iid:
                 values = v_list
         self.users_dropdown_var.set(f"[{values[0]}] {values[1]}")
+
+    @classmethod
+    def add_chat_message(self, message):
+        message_str = message_data_list_to_str(message, show_timestamp=True)
+        self.window.chat_scrolled_text.config(state="normal")
+        self.window.chat_scrolled_text.insert("end", message_str)
+        self.window.chat_scrolled_text.config(state="disabled")
 
 
 # TODO sort treeview: https://stackoverflow.com/questions/22032152/python-ttk-treeview-sort-numbers
