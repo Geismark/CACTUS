@@ -1,7 +1,7 @@
 # ============== DO NOT MOVE ==============
 import src.logger.__init__ as log_init
 # ============== DO NOT MOVE ==============
-log_init.server_custom_file_start = [True]
+log_init.custom_file_name_start = "server_"
 # ============== DO NOT MOVE ==============
 
 import socket, threading
