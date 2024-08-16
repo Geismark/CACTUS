@@ -35,3 +35,9 @@ Feedback:
 - add sound
 - add replay
 - transcription of SRS?
+
+
+
+self.window.notebook.bind("<<NotebookTabChanged>>", None)
+self.notebook.hide(self.tab_words)
+self.notebook.tab(self.tab_words, state="disabled")

@@ -25,48 +25,51 @@ class ClientGUI:
 
     @classmethod
     def setup_notebook_and_tabs(self):
+        # notebook
         self.window.notebook = ttk.Notebook(self.window)
+        # connect
         self.window.tab_connect = ttk.Frame(self.window.notebook)
         self.window.notebook.add(self.window.tab_connect, text="Connect")
+        # words
         self.window.tab_words = ttk.Frame(self.window.notebook)
-        self.window.notebook.add(self.window.tab_words, text="Tactical")
+        self.window.notebook.add(self.window.tab_words, text="WORDS")
+        # chat
         self.window.tab_chat = ttk.Frame(self.window.notebook)
         self.window.notebook.add(self.window.tab_chat, text="Chat")
+        # users
         self.window.tab_users = ttk.Frame(self.window.notebook)
         self.window.notebook.add(self.window.tab_users, text="Users")
+
         self.window.notebook.pack()
-        # self.window.notebook.bind("<<NotebookTabChanged>>", None)
-        # self.notebook.hide(self.tab_words)
-        # self.notebook.tab(self.tab_words, state="disabled")
 
     @classmethod
     def setup_tab_connect(self, window, tab):
-        # address
+        # --- Address ---
         window.address_label = tk.Label(tab, text="Address:")
         window.address_label.grid(row=0, column=0, sticky="e")
         window.address_text = tk.Entry(tab)
         window.address_text.grid(row=0, column=1, sticky="w")
-        # port
+        # --- Port ---
         window.port_label = tk.Label(tab, text="Port:")
         window.port_label.grid(row=0, column=2, sticky="e")
         window.port_text = tk.Entry(tab)
         window.port_text.grid(row=0, column=3, sticky="w")
-        # callsign
+        # --- Callsign ---
         window.callsign_label = tk.Label(tab, text="Callsign:")
         window.callsign_label.grid(row=1, column=0, sticky="e")
         window.callsign_text = tk.Entry(tab)
         window.callsign_text.grid(row=1, column=1, sticky="w")
-        # password
+        # --- Password ---
         window.password_label = tk.Label(tab, text="Password:")
         window.password_label.grid(row=1, column=2, sticky="e")
         window.password_text = tk.Entry(tab, show="*")
         window.password_text.grid(row=1, column=3, sticky="w")
-        # button
+        # --- Button ---
         window.connect_button = tk.Button(
             tab, text="Connect", command=window.connect_to_server
         )
         window.connect_button.grid(row=2, column=3, sticky="e")
-        # feedback label
+        # --- Feedback ---
         window.connect_feedback_label = tk.Label(tab, text="")
         window.connect_feedback_label.grid(row=2, column=0, columnspan=3)
 
@@ -78,36 +81,39 @@ class ClientGUI:
 
     @classmethod
     def setup_words_input(self, window, tab):
-        # frame
+        # --- Frame ---
         window.words_input_labelframe = ttk.LabelFrame(
             tab, text="Words Input", height=400
         )
         input_frame = window.words_input_labelframe
         input_frame.grid(row=0, column=0)
-        # select WORD
-        validate_command = (input_frame.register(self.validate_word_input), "%P")
+        # --- Select WORD ---
+        validate_command = (
+            input_frame.register(self._validate_word_select_input),
+            "%P",
+        )
         window.words_input_word_label = tk.Label(input_frame, text="Word:")
         window.words_input_word_label.grid(row=0, column=0, sticky="w")
         window.words_input_word_entry = tk.Entry(
             input_frame, width=2, validate="key", validatecommand=validate_command
         )
         window.words_input_word_entry.grid(row=0, column=1, sticky="w")
-        # Remove
+        # --- Remove ---
         window.words_input_remove_label = tk.Label(input_frame, text="Remove:")
         window.words_input_remove_label.grid(row=0, column=2, sticky="w")
         window.words_input_remove = ttk.Checkbutton(
             input_frame, command=self.toggle_words_input_text
         )
-        #   alternate is default state for ttk.Checkbutton, make button unselected
+        # alternate is default state for ttk.Checkbutton, make button unselected
         window.words_input_remove.state(["!alternate"])
         window.words_input_remove.grid(row=0, column=3, sticky="w")
-        # text
+        # --- Text ---
         window.words_input_text = tk.Text(input_frame, width=30, height=5)
         window.words_input_text.grid(row=1, column=0, columnspan=3)
-        # feedback
+        # --- Feedback ---
         window.words_input_feedback_label = tk.Label(input_frame, text="")
         window.words_input_feedback_label.grid(row=2, column=0, columnspan=2)
-        # button
+        # --- Button ---
         window.words_input_update_button = tk.Button(
             input_frame, text="Update", command=window.update_words
         )
@@ -120,14 +126,14 @@ class ClientGUI:
 
     @classmethod
     def setup_words_treeview(self, window, tab):
-        # frame
+        # --- Frame ---
         window.words_treeFrame = ttk.LabelFrame(tab, text="Words")
         tree_frame = window.words_treeFrame
         tree_frame.grid(row=0, column=2)
-        # scrollbar init
+        # --- Scrollbar ---
         treeScroll = ttk.Scrollbar(tree_frame, orient="vertical")
         treeScroll.pack(side="right", fill="y")
-        # treeview & scrollbar config
+        # --- Treeview ---
         cols = ("WORD", "Content")
         window.words_treeview = ttk.Treeview(
             tree_frame,
@@ -138,10 +144,8 @@ class ClientGUI:
         )
         window.words_treeview.pack()
         treeScroll.config(command=window.words_treeview.yview)
-        # set column configs
         window.words_treeview.column("WORD", width=44, minwidth=20, anchor="center")
         window.words_treeview.column("Content", width=400, anchor="w")
-        # set column names
         for col in cols:
             window.words_treeview.heading(col, text=col)
 
@@ -153,14 +157,14 @@ class ClientGUI:
 
     @classmethod
     def setup_users_treeview(self, window, tab):
-        # frame
+        # --- Frame ---
         window.users_treeFrame = ttk.LabelFrame(tab, text="Users")
         tree_frame = window.users_treeFrame
         tree_frame.grid(row=0, column=2)
-        # scrollbar init
+        # --- Scrollbar ---
         treeScroll = ttk.Scrollbar(tree_frame, orient="vertical")
         treeScroll.pack(side="right", fill="y")
-        # treeview & scrollbar config
+        # --- Treeview ---
         cols = ("IID", "Users", "Notes")
         window.users_treeview = ttk.Treeview(
             tree_frame,
@@ -171,11 +175,9 @@ class ClientGUI:
         )
         window.users_treeview.pack()
         treeScroll.config(command=window.users_treeview.yview)
-        # set column configs
         window.users_treeview.column("IID", width=30, anchor="w")
         window.users_treeview.column("Users", width=80, anchor="center")
         window.users_treeview.column("Notes", width=380, anchor="w")
-        # set column names
         for col in cols:
             window.users_treeview.heading(col, text=col)
         window.users_treeview.bind(
@@ -185,14 +187,13 @@ class ClientGUI:
     @classmethod
     def setup_users_input(self, window, tab):
         self.users_dropdown_var = tk.StringVar()
-        # frame
+        # --- Frame ---
         window.users_input_labelframe = ttk.LabelFrame(
             tab, text="Edit User Notes", height=400
         )
         input_frame = window.users_input_labelframe
         input_frame.grid(row=0, column=0)
-
-        # dropdown (combobox)
+        # --- Dropdown (Combobox) ---
         window.users_input_user_label = tk.Label(input_frame, text="User:")
         window.users_input_user_label.grid(row=0, column=0, sticky="w")
         window.users_select_user_combobox = ttk.Combobox(
@@ -202,14 +203,13 @@ class ClientGUI:
             postcommand=self._update_user_dropdown_options,
         )
         window.users_select_user_combobox.grid(row=0, column=1, sticky="w")
-
-        # text
+        # --- Text ---
         window.users_input_edit_text = tk.Text(input_frame, width=30, height=5)
         window.users_input_edit_text.grid(row=1, column=0, columnspan=2)
-        # feedback
+        # --- Feedback ---
         window.users_input_feedback_label = tk.Label(input_frame, text="")
         window.users_input_feedback_label.grid(row=2, column=0)
-        # button
+        # --- Button ---
         window.users_input_update_button = tk.Button(
             input_frame, text="Update", command=window.update_users
         )
@@ -222,24 +222,22 @@ class ClientGUI:
 
     @classmethod
     def setup_tab_chat(self, window, tab):
-        # chat
+        # --- Chat ---
         window.chat_scrolled_text = scrolledtext.ScrolledText(tab, width=90, height=13)
         window.chat_scrolled_text.pack()
         window.chat_scrolled_text.config(state="disabled")
-        # input
+        # --- Input ---
         window.chat_input_entry = tk.Entry(tab, width=90)
         window.chat_input_entry.pack(side="left", fill="x", expand=True)
-        # button
+        # --- Button ---
         window.chat_send_button = tk.Button(
             tab, text="Send", command=window.send_chat_message
         )
         window.chat_send_button.pack(side="right")
 
     @classmethod
-    def validate_word_input(self, result):
-        # https://stackoverflow.com/questions/4140437/interactively-validating-entry-widget-content-in-tkinter/4140988#4140988
-
-        # "" must be allowed - that is the value of 'delete'/backspace
+    def _validate_word_select_input(self, result):
+        """Takes the value of the text entry if an edit were to be allowed and returns if it is a valid WORD character"""
         if (result == "" or result.isalpha()) and len(result) <= 1:
             self.log.trace(f"Input is valid WORD character: {result}")
             return True
@@ -249,6 +247,7 @@ class ClientGUI:
 
     @classmethod
     def toggle_words_input_text(self):
+        """Runs when the remove checkbox is toggled; toggles whether the text input is disabled based on if the checkbox is selected."""
         remove_state = self.window.words_input_remove.instate(["selected"])
         if remove_state:
             self.window.words_input_text.config(state="disable")
@@ -319,7 +318,6 @@ class ClientGUI:
 
     @classmethod
     def _user_treeview_double_click_select_user_combobox(self, event):
-        children = self.window.users_treeview.get_children()
         _selected = self.window.users_treeview.selection()
         values = self.window.users_treeview.item(_selected)["values"]
         iid = self.window.users_treeview.focus()
