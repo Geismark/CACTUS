@@ -1,4 +1,5 @@
 {
+	"status": 100,
 	"time": "time.time()",
 	"Init": {
 		"callsign": "Red Crown",
