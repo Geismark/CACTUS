@@ -140,8 +140,6 @@ class ServerManager:
                         f"Client failed authentication: {get_socket_id(client_socket)}"
                     )
                 continue
-                # only messages recieved after authentication are processed
-                # messages trying to authenticate (success or fail)
             if not self.clients.get(client_socket):
                 log.warning(
                     f"Message received from unauthenticated client: {get_socket_id(client_socket)}"
@@ -160,11 +158,11 @@ class ServerManager:
 
     def _process_Init(self, client_socket, init):
         if init:
-            pass
+            log.warning(f"Received Init from authenticated user: {init}")
 
     def _process_Meta(self, client_socket, meta):
         if meta:
-            pass
+            log.warning(f"Received Meta from authenticated user: {meta}")
 
     def _process_WORDS(self, client_socket, words):
         if not words:
@@ -295,6 +293,10 @@ class ServerManager:
         return True
 
     def add_client_and_callsign_to_dicts(self, client_socket, callsign):
+        '''Takes a client_socket and callsign.\n
+        Sends new client callsign and note to current clients.\n
+        Removes socket from new_clients dict and adds it to clients dict.\n
+        Adds callsign to clients dict and adds callsign to users_notes_dict.'''
         self.broadcast_update_to_all_authenticated_clients(
             {"Users": {"ADD": {client_socket.fileno(): [callsign, "None"]}}}
         )
