@@ -6,14 +6,9 @@ from src.utils.words_util import letter_to_int
 from src.classes.data_handler import DataHandler
 from errno import ENOTSOCK
 from queue import Queue
+import src.utils.dev_client_defaults as dev_defaults
 
 log = get_logger("Client")
-
-TESTING = True
-testing_address = "127.0.0.1"
-testing_port = 13750
-testing_callsign = "Red Crown"
-testing_password = "1234"
 
 
 class Client(tk.Tk):
@@ -25,13 +20,11 @@ class Client(tk.Tk):
         self.listen_thread = None
         self.chat_history = None
         super().__init__()
-        self.gui_setup()
-        if TESTING:
-            self.set_connect_defaults(
-                testing_address, testing_port, testing_callsign, testing_password
-            )
+        self._gui_setup()
+        if dev_defaults.TESTING:
+            self.set_dev_connect_defaults()
 
-    def gui_setup(self):
+    def _gui_setup(self):
         ClientGUI.gui_setup(self)
 
     def disconnect_from_server(self, feedback):
@@ -47,7 +40,7 @@ class Client(tk.Tk):
         self.chat_history = None
         log.debug(f"Disconnected from server - threads: {len(threading.enumerate())}")
 
-    def connect_setup(self):
+    def _connect_setup(self):
         self.server_message_queue = Queue()
         self.connect_feedback_label.config(text="")
         self.client_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
@@ -58,7 +51,7 @@ class Client(tk.Tk):
         self.chat_history = {}
 
     def connect_to_server(self):
-        self.connect_setup()
+        self._connect_setup()
         if self.check_indicators_in_text_list([self.password, self.callsign]):
             self.set_connect_feedback(text="Invalid characters in input")
             return
@@ -73,7 +66,6 @@ class Client(tk.Tk):
             )
             log.debug(e)
             self.set_connect_feedback(text="Connection Refused")
-            # self.connect_button.config(fg="red")
 
     def update_client_as_connected(self):
         self.connected = True
@@ -106,7 +98,7 @@ class Client(tk.Tk):
     def start_processing_thread(self):
         if not self.processing_thread or not self.processing_thread.is_alive():
             self.processing_thread = threading.Thread(
-                target=self._process_message_thread, daemon=True
+                target=self._process_message_threadfunc, daemon=True
             )
             self.processing_thread.start()
         else:
@@ -115,13 +107,13 @@ class Client(tk.Tk):
     def start_listening_thread(self):
         if not self.listen_thread or not self.listen_thread.is_alive():
             self.listen_thread = threading.Thread(
-                target=self._listen_to_server_thread, daemon=True
+                target=self._listen_to_server_threadfunc, daemon=True
             )
             self.listen_thread.start()
         else:
             log.error("Listening thread already running")
 
-    def _listen_to_server_thread(self):
+    def _listen_to_server_threadfunc(self):
         log.debug("Listening thread started")
         data_handler = DataHandler(self.client_socket, self.server_message_queue)
         try:
@@ -169,11 +161,11 @@ class Client(tk.Tk):
             inputs_state,
         )
 
-    def set_connect_defaults(self, address, port, callsign, password):
-        self.address_text.insert(0, address)
-        self.port_text.insert(0, port)
-        self.callsign_text.insert(0, callsign)
-        self.password_text.insert(0, password)
+    def set_dev_connect_defaults(self):
+        self.address_text.insert(0, dev_defaults.testing_address)
+        self.port_text.insert(0, dev_defaults.testing_port)
+        self.callsign_text.insert(0, dev_defaults.testing_callsign)
+        self.password_text.insert(0, dev_defaults.testing_password)
 
     def set_connect_feedback(self, text):
         self.connect_feedback_label.config(text=text)
@@ -272,7 +264,7 @@ class Client(tk.Tk):
                 return True
         return False
 
-    def _process_message_thread(self):
+    def _process_message_threadfunc(self):
         log.debug("Processing thread started")
         while self.connected:
             client_socket, data = self.server_message_queue.get()
@@ -281,7 +273,7 @@ class Client(tk.Tk):
                 return
             log.debug(f"Processing message: {data}")
             time = data.get("time")
-            # Status must be processed first to allow for gui reset on resync
+            # Status is processed first to allow for gui reset on resync
             if status := data.get("status"):
                 self.process_message_status_code(status)
             self._process_Init(data.get("Init", {}))
