@@ -25,21 +25,20 @@ class ClientGUI:
 
     @classmethod
     def setup_notebook_and_tabs(self):
-        # notebook
         self.window.notebook = ttk.Notebook(self.window)
-        # connect
+        # --- Connect ---
         self.window.tab_connect = ttk.Frame(self.window.notebook)
         self.window.notebook.add(self.window.tab_connect, text="Connect")
-        # words
+        # --- Words ---
         self.window.tab_words = ttk.Frame(self.window.notebook)
         self.window.notebook.add(self.window.tab_words, text="WORDS")
-        # chat
+        # --- Chat ---
         self.window.tab_chat = ttk.Frame(self.window.notebook)
         self.window.notebook.add(self.window.tab_chat, text="Chat")
-        # users
+        # --- Users ---
         self.window.tab_users = ttk.Frame(self.window.notebook)
         self.window.notebook.add(self.window.tab_users, text="Users")
-
+        # --- Pack ---
         self.window.notebook.pack()
 
     @classmethod
