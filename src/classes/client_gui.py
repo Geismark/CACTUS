@@ -2,8 +2,9 @@ import re
 import tkinter as tk
 from tkinter import ttk, scrolledtext
 from src.logger.logger import get_logger
-from src.utils.words_util import int_to_phonetic
+from src.utils.words_util import int_to_phonetic, int_to_letter
 from src.utils.chat_utils import message_data_list_to_str
+from src.utils.tk_util import set_tk_entry_text, get_tk_text_text, set_tk_text_text
 
 
 class ClientGUI:
@@ -147,6 +148,9 @@ class ClientGUI:
         window.words_treeview.column("Content", width=400, anchor="w")
         for col in cols:
             window.words_treeview.heading(col, text=col)
+        window.words_treeview.bind(
+            "<Double-1>", self._words_treeview_double_click_select_words_combobox
+        )
 
     @classmethod
     def setup_tab_users(self, window, tab):
@@ -324,7 +328,20 @@ class ClientGUI:
         for v_list in values_list:
             if v_list[0] == iid:
                 values = v_list
+                break
         self.users_dropdown_var.set(f"[{values[0]}] {values[1]}")
+
+    @classmethod
+    def _words_treeview_double_click_select_words_combobox(self, event):
+        _selected = self.window.words_treeview.selection()
+        _, content = self.window.words_treeview.item(_selected)["values"]
+        word_iid = self.window.words_treeview.focus()
+        print(f"{word_iid=}")
+        print(f"{content=}")
+        word = int_to_letter(word_iid)
+        set_tk_entry_text(self.window.words_input_word_entry, word)
+        if not get_tk_text_text(self.window.words_input_text):
+            set_tk_text_text(self.window.words_input_text, content)
 
     @classmethod
     def add_chat_message(self, message):
